@@ -7,13 +7,15 @@ const PhotoCapture = ({
   onPhotosUpdate,
   onFinish,
   onClose,
-  // ✅ REMOVED: students and onSelectStudent props
+  onNextStudent,
+  hasNextStudent,
 }) => {
   // Refs
   const fileInputRef = useRef(null);
   const keepAndAddRef = useRef(null);
   const finishBtnRef = useRef(null);
   const captureBtnRef = useRef(null);
+  const nextStudentBtnRef = useRef(null);
 
   // States
   const [currentPhoto, setCurrentPhoto] = useState(null);
@@ -21,6 +23,9 @@ const PhotoCapture = ({
   const [stream, setStream] = useState(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  // ✅ REMOVED: setCapturedPhotos state - using onPhotosUpdate prop instead
 
   // Safe student data access
   const studentData = student || {
@@ -28,9 +33,7 @@ const PhotoCapture = ({
     name: "Unknown Student",
   };
 
-  // ✅ REMOVED: Auto-select next student function
-
-  // Camera setup function (same as before)
+  // Camera setup function
   const setupCamera = useCallback(async () => {
     try {
       console.log("Starting camera setup...");
@@ -90,7 +93,7 @@ const PhotoCapture = ({
     }
   }, [stream]);
 
-  // Photo capture functions (same as before)
+  // Photo capture functions
   const handleTakePhoto = useCallback(async () => {
     if (isProcessing || !cameraReady || !stream) {
       console.log(
@@ -246,52 +249,79 @@ const PhotoCapture = ({
     setCurrentPhoto(null);
   }, []);
 
-  // ✅ UPDATED: Finish photo session WITHOUT auto-select next
-  const handleFinish = useCallback(() => {
-    const totalPhotos = (capturedPhotos?.length || 0) + (currentPhoto ? 1 : 0);
+  // ✅ FIXED: handleFinish function - removed setCapturedPhotos
+  // ✅ UPDATED: handleFinish function - No changes needed here, just better UI
+const handleFinish = useCallback(async () => {
+  const totalPhotos = (capturedPhotos?.length || 0) + (currentPhoto ? 1 : 0);
 
-    if (totalPhotos === 0) {
-      alert("Please capture at least one photo before finishing.");
-      return;
+  if (totalPhotos === 0) {
+    alert("Please capture at least one photo before finishing.");
+    return;
+  }
+
+  try {
+    setUploading(true);
+    console.log(`🔄 Finishing session with ${totalPhotos} photos for ${studentData.rollNumber}...`);
+    
+    let finalPhotos = [...(capturedPhotos || [])];
+
+    // Add current photo if exists
+    if (currentPhoto) {
+      const newPhoto = {
+        id: Date.now(),
+        data: currentPhoto,
+        pageNumber: (capturedPhotos?.length || 0) + 1,
+        timestamp: new Date().toISOString(),
+        studentRoll: studentData.rollNumber,
+      };
+      finalPhotos.push(newPhoto);
     }
 
-    try {
-      let finalPhotos = [...(capturedPhotos || [])];
-
-      if (currentPhoto) {
-        const newPhoto = {
-          id: Date.now(),
-          data: currentPhoto,
-          pageNumber: (capturedPhotos?.length || 0) + 1,
-          timestamp: new Date().toISOString(),
-          studentRoll: studentData.rollNumber,
-        };
-        finalPhotos.push(newPhoto);
-
-        if (onPhotosUpdate) {
-          onPhotosUpdate(finalPhotos);
-        }
+    // Call onFinish with photos and get success status
+    console.log('📤 Sending photos to upload...');
+    const success = await onFinish(finalPhotos);
+    
+    if (success) {
+      console.log('✅ Upload successful, waiting for next student...');
+      // ✅ AUTOMATIC: Parent component will handle moving to next student
+      // Just reset the current state
+      setCurrentPhoto(null);
+      
+      if (onPhotosUpdate) {
+        onPhotosUpdate([]);
       }
-
-      if (onFinish) {
-        onFinish(finalPhotos);
-      }
-
-      // ✅ REMOVED: Auto-select next student
-      // The modal will close and user can manually select next student
-    } catch (error) {
-      console.error("Error finishing photo session:", error);
-      alert("Error finishing session. Please try again.");
+      
+      console.log('✅ Ready for next student...');
+    } else {
+      console.error('❌ Upload failed');
     }
-  }, [
-    currentPhoto,
-    capturedPhotos,
-    onPhotosUpdate,
-    onFinish,
-    studentData.rollNumber,
-  ]);
+  } catch (error) {
+    console.error("❌ Error finishing photo session:", error);
+    alert("Error finishing session. Please try again.");
+  } finally {
+    setUploading(false);
+  }
+}, [
+  currentPhoto,
+  capturedPhotos,
+  onFinish,
+  studentData.rollNumber,
+  onPhotosUpdate,
+]);
 
-  // Keyboard shortcuts (same as before)
+  // ✅ FIXED: Handle next student directly - clear photos properly
+  const handleNextStudent = useCallback(() => {
+    if (onNextStudent) {
+      // ✅ FIXED: Clear photos before moving to next student
+      setCurrentPhoto(null);
+      if (onPhotosUpdate) {
+        onPhotosUpdate([]);
+      }
+      onNextStudent();
+    }
+  }, [onNextStudent, onPhotosUpdate]);
+
+  // Keyboard shortcuts (updated)
   const handleKeyPress = useCallback(
     (e) => {
       if (
@@ -310,7 +340,7 @@ const PhotoCapture = ({
       }
 
       if (
-        ["r", "R", "c", "C", "k", "K", "f", "F", "a", "A", "Escape"].includes(
+        ["r", "R", "c", "C", "k", "K", "f", "F", "a", "A", "n", "N", "Escape"].includes(
           e.key
         )
       ) {
@@ -343,6 +373,12 @@ const PhotoCapture = ({
         case "A":
           if (currentPhoto) handleKeepAndAddMore();
           break;
+        case "n":
+        case "N":
+          if (hasNextStudent && !uploading) {
+            handleNextStudent();
+          }
+          break;
         case "Escape":
           if (onClose) onClose();
           break;
@@ -357,15 +393,18 @@ const PhotoCapture = ({
       isProcessing,
       cameraReady,
       capturedPhotos,
+      uploading,
+      hasNextStudent,
       handleTakePhoto,
       handleKeepAndAddMore,
       handleRetake,
       handleFinish,
+      handleNextStudent,
       onClose,
     ]
   );
 
-  // Auto-focus management (same as before)
+  // Auto-focus management (updated)
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (currentPhoto && keepAndAddRef.current) {
@@ -378,7 +417,7 @@ const PhotoCapture = ({
     return () => clearTimeout(timeout);
   }, [currentPhoto, cameraReady]);
 
-  // Camera initialization (same as before)
+  // Camera initialization
   useEffect(() => {
     let mounted = true;
 
@@ -405,7 +444,7 @@ const PhotoCapture = ({
     };
   }, []);
 
-  // Keyboard event listener (same as before)
+  // Keyboard event listener
   useEffect(() => {
     document.addEventListener("keydown", handleKeyPress);
     return () => {
@@ -453,16 +492,22 @@ const PhotoCapture = ({
             <span className="pages-count">
               {(capturedPhotos?.length || 0) + (currentPhoto ? 1 : 0)} pages
               {isProcessing && " (Capturing...)"}
+              {uploading && " (Uploading...)"}
               {!cameraReady && !cameraError && " (Camera initializing...)"}
             </span>
-            {/* ✅ REMOVED: Next student info */}
+            {/* ✅ ADDED: Next student indicator */}
+            {hasNextStudent && (
+              <span className="next-student-indicator">
+                ⏭ Next student available
+              </span>
+            )}
           </div>
           <div className="quick-actions">
             <button
               type="button"
               className="quick-btn"
               onClick={handleTakePhoto}
-              disabled={isProcessing || !cameraReady}
+              disabled={isProcessing || !cameraReady || uploading}
               title={cameraReady ? "Take Photo (Enter)" : "Camera not ready"}
             >
               📷
@@ -471,6 +516,7 @@ const PhotoCapture = ({
               type="button"
               className="quick-btn"
               onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
               title="Choose from Files"
             >
               🖼️
@@ -492,6 +538,7 @@ const PhotoCapture = ({
           onChange={handleFileSelect}
           accept="image/*"
           style={{ display: "none" }}
+          disabled={uploading}
         />
 
         <div className="capture-content">
@@ -504,12 +551,14 @@ const PhotoCapture = ({
                 <button
                   className="retry-camera-btn"
                   onClick={handleRetryCamera}
+                  disabled={uploading}
                 >
                   🔄 Retry Camera
                 </button>
                 <button
                   className="secondary-btn"
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
                 >
                   📁 Use File Upload Instead
                 </button>
@@ -532,7 +581,7 @@ const PhotoCapture = ({
                   type="button"
                   className="action-btn keep-add"
                   onClick={handleKeepAndAddMore}
-                  disabled={isProcessing}
+                  disabled={isProcessing || uploading}
                 >
                   ➕ Keep & Next (Enter/A)
                 </button>
@@ -541,16 +590,31 @@ const PhotoCapture = ({
                   type="button"
                   className="action-btn finish"
                   onClick={handleFinish}
+                  disabled={uploading}
                 >
-                  📄 Finish (K/F)
+                  {uploading ? "⏳ Uploading..." : "📄 Finish & Save (K/F)"}
                 </button>
                 <button
                   type="button"
                   className="action-btn retake"
                   onClick={handleRetake}
+                  disabled={uploading}
                 >
                   🔄 Retake (R)
                 </button>
+                
+                {/* ✅ ADDED: Next Student Button */}
+                {hasNextStudent && (
+                  <button
+                    ref={nextStudentBtnRef}
+                    type="button"
+                    className="action-btn next-student"
+                    onClick={handleNextStudent}
+                    disabled={uploading}
+                  >
+                    ⏭ Next Student (N)
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -585,6 +649,7 @@ const PhotoCapture = ({
                           className="mini-remove"
                           onClick={() => handleRemovePhoto(photo.id)}
                           title="Remove this page"
+                          disabled={uploading}
                         >
                           ×
                         </button>
@@ -606,7 +671,7 @@ const PhotoCapture = ({
                     type="button"
                     className="capture-btn-large"
                     onClick={handleTakePhoto}
-                    disabled={isProcessing || !cameraReady}
+                    disabled={isProcessing || !cameraReady || uploading}
                   >
                     <div className="camera-icon-large">📷</div>
                     <div className="capture-text">
@@ -626,6 +691,7 @@ const PhotoCapture = ({
                   type="button"
                   className="secondary-btn"
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
                 >
                   📁 Choose File Instead
                 </button>
@@ -634,8 +700,21 @@ const PhotoCapture = ({
                     type="button"
                     className="finish-btn-mini"
                     onClick={handleFinish}
+                    disabled={uploading}
                   >
-                    📄 Finish ({capturedPhotos.length} pages)
+                    {uploading ? "⏳ Uploading..." : `📄 Finish (${capturedPhotos.length} pages)`}
+                  </button>
+                )}
+                
+                {/* ✅ ADDED: Next Student in bottom actions */}
+                {hasNextStudent && (
+                  <button
+                    type="button"
+                    className="next-student-btn-mini"
+                    onClick={handleNextStudent}
+                    disabled={uploading}
+                  >
+                    ⏭ Next Student
                   </button>
                 )}
               </div>
@@ -647,7 +726,7 @@ const PhotoCapture = ({
           <span>
             {cameraError
               ? "Camera unavailable. Use file upload instead."
-              : "Shortcuts: Enter=Capture/Keep & Next, R=Retake, K/F=Finish, A=Keep & Next, Esc=Close"}
+              : `Shortcuts: Enter=Capture/Keep & Next, R=Retake, K/F=Finish & Save, A=Keep & Next${hasNextStudent ? ", N=Next Student" : ""}, Esc=Close`}
           </span>
         </div>
       </div>

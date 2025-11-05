@@ -720,3 +720,71 @@
     width: 100%;
   }
 }
+/* Add these to your existing PhotoCapture.css */
+
+.next-student-indicator {
+  background: #4CAF50;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 10px;
+}
+
+.action-btn.next-student {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+}
+
+.action-btn.next-student:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45a049, #4CAF50);
+  transform: translateY(-2px);
+}
+
+.action-btn.next-student:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+.next-student-btn-mini {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.next-student-btn-mini:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.next-student-btn-mini:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Uploading state styles */
+.uploading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 8px;
+}
+
+.uploading-text {
+  margin-top: 10px;
+  font-weight: bold;
+  color: #2196F3;
+}
