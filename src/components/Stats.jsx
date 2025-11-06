@@ -1,8 +1,9 @@
 import React from 'react';
 import './Stats.css';
 
-const Stats = ({ total, scanned, absent }) => {
-  const remaining = total - scanned - absent;
+const Stats = ({ total, scanned, absent, missing = 0 }) => {
+  // ✅ FIXED: Missing count ko include kiya calculation me
+  const remaining = total - scanned - absent - missing;
 
   return (
     <div className="stats-container">
@@ -28,6 +29,15 @@ const Stats = ({ total, scanned, absent }) => {
           <div className="stat-info">
             <h3>Absent</h3>
             <span className="stat-value">{absent}</span>
+          </div>
+        </div>
+
+        {/* ✅ ADDED: Missing stat card */}
+        <div className="stat-card missing">
+          <div className="stat-icon">📝</div>
+          <div className="stat-info">
+            <h3>Missing</h3>
+            <span className="stat-value">{missing}</span>
           </div>
         </div>
 

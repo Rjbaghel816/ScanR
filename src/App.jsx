@@ -49,32 +49,23 @@ function App() {
     }
   };
 
-  // ✅ UPDATED: handlePhotosCaptured - Automatically moves to next student after success
   const handlePhotosCaptured = async (photosArray) => {
     if (!selectedStudent || photosArray.length === 0) {
       console.error("No student selected or no photos to upload");
       return false;
     }
 
-    setError(null);
     try {
-      console.log('🔄 Converting base64 images to files...');
-      
+      console.log(`📤 Uploading ${photosArray.length} images for ${selectedStudent.rollNumber}...`);
+
       // Convert base64 images to File objects
       const imageFiles = await Promise.all(
         photosArray.map(async (photo, index) => {
-          try {
-            const response = await fetch(photo.data);
-            const blob = await response.blob();
-            return new File([blob], `page_${index + 1}.jpg`, { type: 'image/jpeg' });
-          } catch (error) {
-            console.error(`Error converting image ${index + 1}:`, error);
-            throw new Error(`Failed to convert image ${index + 1}`);
-          }
+          const response = await fetch(photo.data);
+          const blob = await response.blob();
+          return new File([blob], `page_${index + 1}.jpg`, { type: 'image/jpeg' });
         })
       );
-
-      console.log(`📤 Uploading ${imageFiles.length} images to backend for student ${selectedStudent.rollNumber}...`);
 
       // Upload files to backend
       const formData = new FormData();
@@ -82,113 +73,123 @@ function App() {
         formData.append('images', file);
       });
 
-      formData.append('studentId', selectedStudent._id);
-      formData.append('rollNumber', selectedStudent.rollNumber);
-
       const response = await apiService.uploadScans(selectedStudent._id, formData);
       
       if (response.success) {
-        const successMessage = `✅ Successfully scanned ${response.scannedPages || imageFiles.length} pages for ${selectedStudent.rollNumber}`;
-        console.log(successMessage);
+        console.log(`✅ Successfully uploaded ${photosArray.length} pages for ${selectedStudent.rollNumber}`);
         
-        // ✅ Refresh students list to update scan status
+        // Refresh students list
         await fetchStudents(currentPage, itemsPerPage);
         
-        console.log('✅ Upload completed successfully');
-        
-        // ✅ AUTOMATICALLY MOVE TO NEXT STUDENT AFTER SUCCESS
-        const nextStudent = getNextStudent();
-        if (nextStudent) {
-          console.log(`🔄 Automatically moving to next student: ${nextStudent.rollNumber}`);
-          setSelectedStudent(nextStudent);
-          setCapturedPhotos([]); // Reset photos for new student
-          return true;
-        } else {
-          console.log('🎉 No more students available for scanning');
-          // No more students, keep modal open but don't change student
-          return true;
-        }
+        return true;
       } else {
-        const errorMsg = response.message || "Failed to upload scans";
-        console.error('❌ Upload failed:', errorMsg);
-        setError(errorMsg);
+        setError(response.message || "Failed to upload scans");
         return false;
       }
     } catch (error) {
-      console.error("❌ Upload scans error:", error);
-      const errorMsg = error.message || "Failed to upload scanned images";
-      setError(errorMsg);
+      console.error("Upload scans error:", error);
+      setError("Failed to upload scanned images");
       return false;
     }
   };
 
-  // ✅ UPDATED: getNextStudent - Finds next unscanned student
   const getNextStudent = () => {
     if (!selectedStudent || students.length === 0) return null;
     
     const currentIndex = students.findIndex(s => s._id === selectedStudent._id);
     if (currentIndex === -1) return null;
     
-    // Find next unscanned student starting from current index + 1
+    // Find next pending student
     for (let i = currentIndex + 1; i < students.length; i++) {
-      if (!students[i].isScanned && students[i].status !== 'Absent') {
+      if (students[i].status === 'Pending' && !students[i].isScanned) {
         return students[i];
       }
-    }
-    
-    // If no more in current page, try first student of next page
-    if (currentPage < totalPages) {
-      // You can implement auto-page change here if needed
-      console.log('📄 Next student might be on next page');
-      return null;
     }
     
     return null;
   };
 
-  // ✅ UPDATED: Handle next student selection
   const handleNextStudent = () => {
     const nextStudent = getNextStudent();
     if (nextStudent) {
       setSelectedStudent(nextStudent);
       setCapturedPhotos([]);
-      console.log(`🔄 Moving to next student: ${nextStudent.rollNumber}`);
     } else {
-      // No more students, close the modal
       setShowPhotoCapture(false);
       setSelectedStudent(null);
       setCapturedPhotos([]);
-      alert("🎉 All students scanned! Or no more students available for scanning.");
+    }
+  };
+
+  // ✅ UPDATED: Handle mark as absent
+  const handleMarkAsAbsent = async () => {
+    if (!selectedStudent) return;
+
+    try {
+      const response = await apiService.updateStudentStatus(selectedStudent._id, 'Absent');
+      if (response.success) {
+        await fetchStudents(currentPage, itemsPerPage);
+        handleNextStudent();
+      }
+    } catch (error) {
+      console.error("Failed to mark as absent:", error);
+      setError("Failed to mark student as absent");
+    }
+  };
+
+  // ✅ NEW: Handle mark as missing
+  const handleMarkAsMissing = async () => {
+    if (!selectedStudent) return;
+
+    try {
+      const response = await apiService.updateStudentStatus(selectedStudent._id, 'Missing');
+      if (response.success) {
+        await fetchStudents(currentPage, itemsPerPage);
+        handleNextStudent();
+      }
+    } catch (error) {
+      console.error("Failed to mark as missing:", error);
+      setError("Failed to mark student as missing");
+    }
+  };
+
+  const handleStatusChange = async (studentId, newStatus) => {
+    try {
+      const response = await apiService.updateStudentStatus(studentId, newStatus);
+      if (response.success) {
+        setStudents(prev => prev.map(student => 
+          student._id === studentId 
+            ? { ...student, status: newStatus }
+            : student
+        ));
+
+        // Auto move to next student if current student is marked absent/missing
+        if (selectedStudent && selectedStudent._id === studentId && 
+            (newStatus === 'Absent' || newStatus === 'Missing')) {
+          setTimeout(() => {
+            handleNextStudent();
+          }, 300);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      setError("Failed to update student status");
     }
   };
 
   // Check if next student is available
   const hasNextStudent = !!getNextStudent();
 
-  // Handle PDF generation
   const handleGeneratePDF = async (student) => {
-    setError(null);
     try {
-      if (!student.isScanned) {
-        setError("Student has not been scanned yet. Please scan copies first.");
-        return;
-      }
-
-      if (!student.pdfPath) {
-        setError("PDF not generated yet. Please wait or rescan the copies.");
-        return;
-      }
-
       const result = await apiService.generatePDF(student._id);
       if (result.success) {
         console.log(`✅ PDF downloaded: ${result.filename}`);
-        
-        // Refresh students list to update PDF status
         await fetchStudents(currentPage, itemsPerPage);
       }
     } catch (error) {
       console.error("PDF generation failed:", error);
-      setError(error.message || "PDF download failed. Please try scanning again.");
+      setError("PDF download failed. Please try again.");
     }
   };
 
@@ -197,8 +198,6 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      console.log('📤 Uploading file to backend:', file.name);
-
       const formData = new FormData();
       formData.append('file', file);
 
@@ -207,11 +206,10 @@ function App() {
       if (response.success) {
         setIsExcelUploaded(true);
         await fetchStudents(1, itemsPerPage);
-        console.log('✅ Excel upload successful:', response);
       }
     } catch (error) {
-      console.error('❌ Excel upload failed:', error);
-      setError(error.message || "Failed to upload Excel file");
+      console.error('Excel upload failed:', error);
+      setError("Failed to upload Excel file");
     } finally {
       setLoading(false);
     }
@@ -242,22 +240,6 @@ function App() {
     setCurrentPage(1);
   };
 
-  const handleStatusChange = async (studentId, newStatus) => {
-    try {
-      const response = await apiService.updateStudentStatus(studentId, newStatus);
-      if (response.success) {
-        setStudents(prev => prev.map(student => 
-          student._id === studentId 
-            ? { ...student, status: newStatus }
-            : student
-        ));
-      }
-    } catch (error) {
-      console.error("Failed to update status:", error);
-      setError("Failed to update student status");
-    }
-  };
-
   const handleRemarkChange = async (studentId, remark) => {
     try {
       const response = await apiService.updateStudentRemark(studentId, remark);
@@ -270,7 +252,6 @@ function App() {
       }
     } catch (error) {
       console.error("Failed to update remark:", error);
-      setError("Failed to update student remark");
     }
   };
 
@@ -278,7 +259,6 @@ function App() {
     setSelectedStudent(student);
     setShowPhotoCapture(true);
     setCapturedPhotos([]);
-    console.log(`📷 Starting scan for student: ${student.rollNumber}`);
   };
 
   return (
@@ -286,7 +266,7 @@ function App() {
       <header className="app-header">
         <div className="header-content">
           <h1>📱 University Exam Copy Scanner</h1>
-          <p>Capture Photos & Generate PDF - Auto Next Student Scanning</p>
+          <p>Capture Photos & Generate PDF - Complete Student Workflow</p>
         </div>
       </header>
 
@@ -304,6 +284,7 @@ function App() {
           total={totalStudents}
           scanned={students.filter(s => s.isScanned).length}
           absent={students.filter(s => s.status === 'Absent').length}
+          missing={students.filter(s => s.status === 'Missing').length} // ✅ ADDED: Missing count
         />
 
         <StudentTable
@@ -329,15 +310,16 @@ function App() {
             student={selectedStudent}
             capturedPhotos={capturedPhotos}
             onPhotosUpdate={setCapturedPhotos}
-            onFinish={handlePhotosCaptured} // ✅ Now automatically moves to next student
+            onFinish={handlePhotosCaptured}
             onClose={() => {
               setShowPhotoCapture(false);
               setSelectedStudent(null);
               setCapturedPhotos([]);
-              console.log('📷 Photo capture modal closed');
             }}
-            onNextStudent={handleNextStudent} // ✅ Manual next student handler
-            hasNextStudent={hasNextStudent} // ✅ Next student availability
+            onNextStudent={handleNextStudent}
+            onMarkAsAbsent={handleMarkAsAbsent}
+            onMarkAsMissing={handleMarkAsMissing} // ✅ ADDED: Missing handler
+            hasNextStudent={hasNextStudent}
           />
         )}
       </main>

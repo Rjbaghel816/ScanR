@@ -44,9 +44,15 @@
   background: linear-gradient(135deg, #e74c3c15, #e74c3c05);
 }
 
-.stat-card.remaining {
+/* ✅ ADDED: Missing card styling */
+.stat-card.missing {
   border-left-color: #f39c12;
   background: linear-gradient(135deg, #f39c1215, #f39c1205);
+}
+
+.stat-card.remaining {
+  border-left-color: #9b59b6;
+  background: linear-gradient(135deg, #9b59b615, #9b59b605);
 }
 
 .stat-icon {
@@ -69,6 +75,27 @@
   font-weight: 700;
   color: var(--text);
   display: block;
+}
+
+/* ✅ ADDED: Color coding for stat values */
+.stat-card.total .stat-value { 
+  color: #3498db; 
+}
+
+.stat-card.scanned .stat-value { 
+  color: #27ae60; 
+}
+
+.stat-card.absent .stat-value { 
+  color: #e74c3c; 
+}
+
+.stat-card.missing .stat-value { 
+  color: #f39c12; 
+}
+
+.stat-card.remaining .stat-value { 
+  color: #9b59b6; 
 }
 
 .progress-section {

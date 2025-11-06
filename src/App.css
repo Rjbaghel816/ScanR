@@ -133,6 +133,15 @@
   backdrop-filter: blur(10px);
 }
 
+/* ✅ ADDED: Missing row styling */
+.student-row.missing {
+  background: rgba(255, 193, 7, 0.1) !important;
+}
+
+.student-row.missing:hover {
+  background: rgba(255, 193, 7, 0.15) !important;
+}
+
 .student-row.absent {
   background: rgba(231, 76, 60, 0.1) !important;
 }
@@ -215,6 +224,126 @@
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
+/* ✅ ADDED: Error banner styling */
+.error-banner {
+  background: #e74c3c;
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2em;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ✅ ADDED: Missing status indicator */
+.missing-status {
+  background: #f39c12;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ✅ ADDED: Status badges */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.present {
+  background: #27ae60;
+  color: white;
+}
+
+.status-badge.absent {
+  background: #e74c3c;
+  color: white;
+}
+
+.status-badge.missing {
+  background: #f39c12;
+  color: white;
+}
+
+.status-badge.pending {
+  background: #95a5a6;
+  color: white;
+}
+
+/* ✅ ADDED: Photo capture overlay improvements */
+.photo-capture-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.photo-capture-modal {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: modalSlideUp 0.3s ease;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .app-header {
@@ -251,7 +380,19 @@
     transform: none;
     text-align: center;
   }
+  
+  .error-banner {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .photo-capture-modal {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
 }
+
 /* Add this to your existing App.css */
 .global-scan-indicator {
   position: fixed;
@@ -272,4 +413,30 @@
 @keyframes pulse {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0.8; }
+}
+
+/* ✅ ADDED: Missing status specific animations */
+@keyframes missingPulse {
+  0%, 100% { 
+    background: rgba(255, 193, 7, 0.1);
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+  }
+  50% { 
+    background: rgba(255, 193, 7, 0.15);
+    box-shadow: 0 0 0 5px rgba(255, 193, 7, 0);
+  }
+}
+
+.student-row.missing:focus-within {
+  animation: missingPulse 2s infinite;
+}
+
+/* ✅ ADDED: Status transition animations */
+.status-select {
+  transition: all 0.3s ease;
+}
+
+.status-select:focus {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 2px currentColor;
 }

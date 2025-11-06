@@ -22,14 +22,13 @@ const StudentTable = ({
   const fileInputRef = useRef(null);
 
   const handleScanClick = (student) => {
-    if (!student.isScanned && student.status !== "Absent") {
+    if (!student.isScanned && student.status !== "Absent" && student.status !== "Missing") {
       onSelectStudent(student);
     }
   };
 
   const handlePDFClick = (student, event) => {
     event.stopPropagation();
-    // ✅ UPDATED: Check if student is scanned and has PDF path
     if (student.isScanned && student.pdfPath) {
       onGeneratePDF(student);
     } else if (student.isScanned && !student.pdfPath) {
@@ -48,13 +47,11 @@ const StudentTable = ({
     return new Date(scanTime).toLocaleTimeString();
   };
 
-  // ✅ ADDED: Get PDF generation time
   const getPDFTime = (pdfGeneratedAt) => {
     if (!pdfGeneratedAt) return "";
     return new Date(pdfGeneratedAt).toLocaleTimeString();
   };
 
-  // ✅ ADDED: Format file size
   const formatFileSize = (bytes) => {
     if (!bytes) return "";
     if (bytes === 0) return "0 Bytes";
@@ -118,7 +115,6 @@ const StudentTable = ({
           Upload Excel with columns: Roll Number, Subject Code, Subject Name
         </span>
 
-        {/* ✅ ADDED: Quick Stats */}
         {students.length > 0 && (
           <div className="quick-stats">
             <span className="stat-item">📋 Total: {totalStudents}</span>
@@ -127,6 +123,12 @@ const StudentTable = ({
             </span>
             <span className="stat-item">
               📄 PDFs: {students.filter((s) => s.pdfPath).length}
+            </span>
+            <span className="stat-item">
+              ❌ Absent: {students.filter((s) => s.status === 'Absent').length}
+            </span>
+            <span className="stat-item">
+              📝 Missing: {students.filter((s) => s.status === 'Missing').length}
             </span>
           </div>
         )}
@@ -227,7 +229,8 @@ const StudentTable = ({
                   className={`student-row ${
                     student.isScanned ? "scanned" : ""
                   } ${selectedStudent?._id === student._id ? "selected" : ""} ${
-                    student.status === "Absent" ? "absent" : ""
+                    student.status === "Absent" ? "absent" : 
+                    student.status === "Missing" ? "missing" : ""
                   }`}
                 >
                   <td className="roll-number">{student.rollNumber}</td>
@@ -260,7 +263,6 @@ const StudentTable = ({
 
                   <td className="scan-time">{getScanTime(student.scanTime)}</td>
 
-                  {/* ✅ ADDED: PDF Status Column */}
                   <td className="pdf-status">
                     <div className="pdf-info">
                       {student.pdfPath ? (
@@ -294,6 +296,8 @@ const StudentTable = ({
                       className={`status-select ${
                         student.status === "Absent"
                           ? "absent"
+                          : student.status === "Missing"
+                          ? "missing"
                           : student.status === "Present"
                           ? "present"
                           : "pending"
@@ -303,6 +307,7 @@ const StudentTable = ({
                       <option value="Pending">Pending</option>
                       <option value="Present">Present</option>
                       <option value="Absent">Absent</option>
+                      <option value="Missing">Missing</option> {/* ✅ ADDED: Missing option */}
                     </select>
                   </td>
 
@@ -333,16 +338,22 @@ const StudentTable = ({
                       <button
                         className={`scan-btn ${
                           student.isScanned ? "scanned" : ""
-                        } ${student.status === "Absent" ? "disabled" : ""}`}
+                        } ${
+                          student.status === "Absent" || student.status === "Missing" 
+                            ? "disabled" 
+                            : ""
+                        }`}
                         onClick={() => handleScanClick(student)}
                         disabled={
-                          student.isScanned || student.status === "Absent"
+                          student.isScanned || 
+                          student.status === "Absent" || 
+                          student.status === "Missing"
                         }
                         title={
                           student.isScanned
                             ? "Already scanned"
-                            : student.status === "Absent"
-                            ? "Cannot scan absent students"
+                            : student.status === "Absent" || student.status === "Missing"
+                            ? "Cannot scan absent/missing students"
                             : "Scan student copies"
                         }
                       >
@@ -359,7 +370,7 @@ const StudentTable = ({
                         )}
                       </button>
 
-                      {/* PDF Button - ✅ UPDATED: Show only when PDF is available */}
+                      {/* PDF Button */}
                       {student.pdfPath ? (
                         <button
                           className="pdf-btn available"
@@ -451,7 +462,6 @@ const StudentTable = ({
         </div>
       )}
 
-      {/* ✅ ADDED: Footer Info */}
       {students.length > 0 && (
         <div className="table-footer">
           <div className="footer-info">
@@ -460,6 +470,9 @@ const StudentTable = ({
             </span>
             <span className="footer-item">
               📁 PDFs are automatically generated after scanning
+            </span>
+            <span className="footer-item">
+              📝 Use "Missing" status for students who didn't submit copies
             </span>
           </div>
         </div>

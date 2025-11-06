@@ -8,10 +8,11 @@ const PhotoCapture = ({
   onFinish,
   onClose,
   onNextStudent,
+  onMarkAsAbsent,
+  onMarkAsMissing,
   hasNextStudent,
 }) => {
   // Refs
-  const fileInputRef = useRef(null);
   const keepAndAddRef = useRef(null);
   const finishBtnRef = useRef(null);
   const captureBtnRef = useRef(null);
@@ -25,8 +26,6 @@ const PhotoCapture = ({
   const [cameraError, setCameraError] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  // ✅ REMOVED: setCapturedPhotos state - using onPhotosUpdate prop instead
-
   // Safe student data access
   const studentData = student || {
     rollNumber: "Unknown",
@@ -36,7 +35,6 @@ const PhotoCapture = ({
   // Camera setup function
   const setupCamera = useCallback(async () => {
     try {
-      console.log("Starting camera setup...");
       setCameraError(null);
 
       // Stop existing stream if any
@@ -52,22 +50,13 @@ const PhotoCapture = ({
         },
       };
 
-      console.log("Requesting camera with constraints:", constraints);
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia(
-        constraints
-      );
-      console.log("Camera access granted");
-
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
       setCameraReady(true);
       return true;
     } catch (error) {
-      console.error("Camera setup failed:", error);
-
       // Try front camera as fallback
       try {
-        console.log("Trying front camera...");
         const fallbackConstraints = {
           video: {
             facingMode: "user",
@@ -76,17 +65,12 @@ const PhotoCapture = ({
           },
         };
 
-        const fallbackStream = await navigator.mediaDevices.getUserMedia(
-          fallbackConstraints
-        );
+        const fallbackStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
         setStream(fallbackStream);
         setCameraReady(true);
         return true;
       } catch (fallbackError) {
-        console.error("All camera attempts failed:", fallbackError);
-        setCameraError(
-          "Camera access failed. Please check permissions and ensure camera is available."
-        );
+        setCameraError("Camera access failed. Please check permissions.");
         setCameraReady(false);
         return false;
       }
@@ -95,21 +79,10 @@ const PhotoCapture = ({
 
   // Photo capture functions
   const handleTakePhoto = useCallback(async () => {
-    if (isProcessing || !cameraReady || !stream) {
-      console.log(
-        "Cannot capture - Processing:",
-        isProcessing,
-        "Camera Ready:",
-        cameraReady,
-        "Stream:",
-        !!stream
-      );
-      return;
-    }
+    if (isProcessing || !cameraReady || !stream) return;
 
     try {
       setIsProcessing(true);
-      console.log("Starting photo capture...");
 
       if ("ImageCapture" in window) {
         const track = stream.getVideoTracks()[0];
@@ -117,19 +90,13 @@ const PhotoCapture = ({
 
         try {
           const blob = await imageCapture.takePhoto();
-          console.log("Photo captured via ImageCapture API");
-
           const reader = new FileReader();
           reader.onload = (e) => {
             setCurrentPhoto(e.target.result);
             setIsProcessing(false);
           };
           reader.readAsDataURL(blob);
-        } catch (imageCaptureError) {
-          console.error(
-            "ImageCapture failed, using fallback:",
-            imageCaptureError
-          );
+        } catch {
           await captureWithCanvasFallback();
         }
       } else {
@@ -137,7 +104,6 @@ const PhotoCapture = ({
       }
     } catch (error) {
       console.error("Error capturing photo:", error);
-      alert("Failed to capture photo. Please try again or use file upload.");
       setIsProcessing(false);
     }
   }, [isProcessing, cameraReady, stream]);
@@ -167,8 +133,6 @@ const PhotoCapture = ({
       ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
 
       const imageDataURL = canvas.toDataURL("image/jpeg", 0.9);
-      console.log("Photo captured via canvas fallback");
-
       setCurrentPhoto(imageDataURL);
       tempVideo.srcObject = null;
     } catch (error) {
@@ -176,33 +140,6 @@ const PhotoCapture = ({
       throw error;
     }
   }, [stream]);
-
-  // File selection handler
-  const handleFileSelect = useCallback((event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image file (JPEG, PNG, etc.)");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      alert("Image size should be less than 10MB");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setCurrentPhoto(e.target.result);
-    };
-    reader.onerror = () => {
-      alert("Error reading file. Please try another image.");
-    };
-    reader.readAsDataURL(file);
-
-    event.target.value = "";
-  }, []);
 
   // Add current photo to captured list
   const addCurrentPhotoToCaptured = useCallback(() => {
@@ -232,15 +169,12 @@ const PhotoCapture = ({
   // Keep and add more photos
   const handleKeepAndAddMore = useCallback(() => {
     if (currentPhoto && !isProcessing) {
-      const success = addCurrentPhotoToCaptured();
-      if (success) {
-        console.log("Photo added successfully");
-        setTimeout(() => {
-          if (captureBtnRef.current) {
-            captureBtnRef.current.focus();
-          }
-        }, 100);
-      }
+      addCurrentPhotoToCaptured();
+      setTimeout(() => {
+        if (captureBtnRef.current) {
+          captureBtnRef.current.focus();
+        }
+      }, 100);
     }
   }, [currentPhoto, isProcessing, addCurrentPhotoToCaptured]);
 
@@ -249,86 +183,78 @@ const PhotoCapture = ({
     setCurrentPhoto(null);
   }, []);
 
-  // ✅ FIXED: handleFinish function - removed setCapturedPhotos
-  // ✅ UPDATED: handleFinish function - No changes needed here, just better UI
-const handleFinish = useCallback(async () => {
-  const totalPhotos = (capturedPhotos?.length || 0) + (currentPhoto ? 1 : 0);
+  // ✅ FIXED: handleFinish function - Clean and working
+  const handleFinish = useCallback(async () => {
+    const totalPhotos = (capturedPhotos?.length || 0) + (currentPhoto ? 1 : 0);
 
-  if (totalPhotos === 0) {
-    alert("Please capture at least one photo before finishing.");
-    return;
-  }
-
-  try {
-    setUploading(true);
-    console.log(`🔄 Finishing session with ${totalPhotos} photos for ${studentData.rollNumber}...`);
-    
-    let finalPhotos = [...(capturedPhotos || [])];
-
-    // Add current photo if exists
-    if (currentPhoto) {
-      const newPhoto = {
-        id: Date.now(),
-        data: currentPhoto,
-        pageNumber: (capturedPhotos?.length || 0) + 1,
-        timestamp: new Date().toISOString(),
-        studentRoll: studentData.rollNumber,
-      };
-      finalPhotos.push(newPhoto);
+    if (totalPhotos === 0) {
+      alert("Please capture at least one photo before finishing.");
+      return;
     }
 
-    // Call onFinish with photos and get success status
-    console.log('📤 Sending photos to upload...');
-    const success = await onFinish(finalPhotos);
-    
-    if (success) {
-      console.log('✅ Upload successful, waiting for next student...');
-      // ✅ AUTOMATIC: Parent component will handle moving to next student
-      // Just reset the current state
-      setCurrentPhoto(null);
+    try {
+      setUploading(true);
       
-      if (onPhotosUpdate) {
-        onPhotosUpdate([]);
+      let finalPhotos = [...(capturedPhotos || [])];
+
+      // Add current photo if exists
+      if (currentPhoto) {
+        const newPhoto = {
+          id: Date.now(),
+          data: currentPhoto,
+          pageNumber: (capturedPhotos?.length || 0) + 1,
+          timestamp: new Date().toISOString(),
+          studentRoll: studentData.rollNumber,
+        };
+        finalPhotos.push(newPhoto);
       }
-      
-      console.log('✅ Ready for next student...');
-    } else {
-      console.error('❌ Upload failed');
-    }
-  } catch (error) {
-    console.error("❌ Error finishing photo session:", error);
-    alert("Error finishing session. Please try again.");
-  } finally {
-    setUploading(false);
-  }
-}, [
-  currentPhoto,
-  capturedPhotos,
-  onFinish,
-  studentData.rollNumber,
-  onPhotosUpdate,
-]);
 
-  // ✅ FIXED: Handle next student directly - clear photos properly
+      const success = await onFinish(finalPhotos);
+      
+      if (success) {
+        setCurrentPhoto(null);
+        if (onPhotosUpdate) {
+          onPhotosUpdate([]);
+        }
+        
+        // Auto move to next student
+        if (hasNextStudent) {
+          setTimeout(() => {
+            onNextStudent();
+          }, 500);
+        } else {
+          onClose();
+        }
+      }
+    } catch (error) {
+      console.error("Error finishing photo session:", error);
+    } finally {
+      setUploading(false);
+    }
+  }, [
+    currentPhoto,
+    capturedPhotos,
+    onFinish,
+    studentData.rollNumber,
+    hasNextStudent,
+    onPhotosUpdate,
+    onNextStudent,
+    onClose,
+  ]);
+
+  // Handle next student
   const handleNextStudent = useCallback(() => {
-    if (onNextStudent) {
-      // ✅ FIXED: Clear photos before moving to next student
-      setCurrentPhoto(null);
-      if (onPhotosUpdate) {
-        onPhotosUpdate([]);
-      }
-      onNextStudent();
+    setCurrentPhoto(null);
+    if (onPhotosUpdate) {
+      onPhotosUpdate([]);
     }
+    onNextStudent();
   }, [onNextStudent, onPhotosUpdate]);
 
-  // Keyboard shortcuts (updated)
+  // Keyboard shortcuts
   const handleKeyPress = useCallback(
     (e) => {
-      if (
-        e.target.tagName === "INPUT" ||
-        e.target.tagName === "TEXTAREA" ||
-        e.target.tagName === "SELECT"
-      ) {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
         return;
       }
 
@@ -339,11 +265,7 @@ const handleFinish = useCallback(async () => {
         return;
       }
 
-      if (
-        ["r", "R", "c", "C", "k", "K", "f", "F", "a", "A", "n", "N", "Escape"].includes(
-          e.key
-        )
-      ) {
+      if (["r", "R", "k", "K", "f", "F", "a", "A", "n", "N", "Escape"].includes(e.key)) {
         e.preventDefault();
       }
 
@@ -382,8 +304,6 @@ const handleFinish = useCallback(async () => {
         case "Escape":
           if (onClose) onClose();
           break;
-        case "Tab":
-          break;
         default:
           break;
       }
@@ -404,7 +324,7 @@ const handleFinish = useCallback(async () => {
     ]
   );
 
-  // Auto-focus management (updated)
+  // Auto-focus management
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (currentPhoto && keepAndAddRef.current) {
@@ -426,10 +346,7 @@ const handleFinish = useCallback(async () => {
         await setupCamera();
       } catch (error) {
         if (mounted) {
-          console.error("Camera initialization failed:", error);
-          setCameraError(
-            "Failed to initialize camera. You can still use file upload."
-          );
+          setCameraError("Failed to initialize camera.");
         }
       }
     };
@@ -493,9 +410,7 @@ const handleFinish = useCallback(async () => {
               {(capturedPhotos?.length || 0) + (currentPhoto ? 1 : 0)} pages
               {isProcessing && " (Capturing...)"}
               {uploading && " (Uploading...)"}
-              {!cameraReady && !cameraError && " (Camera initializing...)"}
             </span>
-            {/* ✅ ADDED: Next student indicator */}
             {hasNextStudent && (
               <span className="next-student-indicator">
                 ⏭ Next student available
@@ -508,18 +423,9 @@ const handleFinish = useCallback(async () => {
               className="quick-btn"
               onClick={handleTakePhoto}
               disabled={isProcessing || !cameraReady || uploading}
-              title={cameraReady ? "Take Photo (Enter)" : "Camera not ready"}
+              title="Take Photo (Enter)"
             >
               📷
-            </button>
-            <button
-              type="button"
-              className="quick-btn"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              title="Choose from Files"
-            >
-              🖼️
             </button>
             <button
               type="button"
@@ -531,15 +437,6 @@ const handleFinish = useCallback(async () => {
             </button>
           </div>
         </div>
-
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-          accept="image/*"
-          style={{ display: "none" }}
-          disabled={uploading}
-        />
 
         <div className="capture-content">
           {cameraError ? (
@@ -554,13 +451,6 @@ const handleFinish = useCallback(async () => {
                   disabled={uploading}
                 >
                   🔄 Retry Camera
-                </button>
-                <button
-                  className="secondary-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  📁 Use File Upload Instead
                 </button>
               </div>
             </div>
@@ -602,8 +492,26 @@ const handleFinish = useCallback(async () => {
                 >
                   🔄 Retake (R)
                 </button>
-                
-                {/* ✅ ADDED: Next Student Button */}
+
+                <div className="status-actions">
+                  <button
+                    type="button"
+                    className="action-btn absent"
+                    onClick={onMarkAsAbsent}
+                    disabled={uploading}
+                  >
+                    ❌ Absent
+                  </button>
+                  <button
+                    type="button"
+                    className="action-btn missing"
+                    onClick={onMarkAsMissing}
+                    disabled={uploading}
+                  >
+                    📝 Missing
+                  </button>
+                </div>
+
                 {hasNextStudent && (
                   <button
                     ref={nextStudentBtnRef}
@@ -687,14 +595,25 @@ const handleFinish = useCallback(async () => {
               </div>
 
               <div className="bottom-actions">
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  📁 Choose File Instead
-                </button>
+                <div className="status-buttons-bottom">
+                  <button
+                    type="button"
+                    className="status-btn absent-btn"
+                    onClick={onMarkAsAbsent}
+                    disabled={uploading}
+                  >
+                    ❌ Mark Absent
+                  </button>
+                  <button
+                    type="button"
+                    className="status-btn missing-btn"
+                    onClick={onMarkAsMissing}
+                    disabled={uploading}
+                  >
+                    📝 Mark Missing
+                  </button>
+                </div>
+
                 {capturedPhotos && capturedPhotos.length > 0 && (
                   <button
                     type="button"
@@ -702,11 +621,12 @@ const handleFinish = useCallback(async () => {
                     onClick={handleFinish}
                     disabled={uploading}
                   >
-                    {uploading ? "⏳ Uploading..." : `📄 Finish (${capturedPhotos.length} pages)`}
+                    {uploading
+                      ? "⏳ Uploading..."
+                      : `📄 Finish (${capturedPhotos.length} pages)`}
                   </button>
                 )}
-                
-                {/* ✅ ADDED: Next Student in bottom actions */}
+
                 {hasNextStudent && (
                   <button
                     type="button"
@@ -725,7 +645,7 @@ const handleFinish = useCallback(async () => {
         <div className="shortcuts-help">
           <span>
             {cameraError
-              ? "Camera unavailable. Use file upload instead."
+              ? "Camera unavailable. Please ensure camera permissions are granted."
               : `Shortcuts: Enter=Capture/Keep & Next, R=Retake, K/F=Finish & Save, A=Keep & Next${hasNextStudent ? ", N=Next Student" : ""}, Esc=Close`}
           </span>
         </div>

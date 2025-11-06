@@ -788,3 +788,104 @@
   font-weight: bold;
   color: #2196F3;
 }
+/* Status buttons styling */
+.status-actions {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.action-btn.absent {
+  background: #ff4444;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.action-btn.absent:hover:not(:disabled) {
+  background: #cc0000;
+}
+
+.action-btn.missing {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.action-btn.missing:hover:not(:disabled) {
+  background: #e68900;
+}
+
+.status-buttons-bottom {
+  display: flex;
+  gap: 10px;
+}
+
+.status-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.absent-btn {
+  background: #ff4444;
+  color: white;
+}
+
+.absent-btn:hover:not(:disabled) {
+  background: #cc0000;
+}
+
+.missing-btn {
+  background: #ff9800;
+  color: white;
+}
+
+.missing-btn:hover:not(:disabled) {
+  background: #e68900;
+}
+
+.student-status {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 10px;
+}
+
+.student-status.scanned {
+  background: #4CAF50;
+  color: white;
+}
+
+.student-status.absent {
+  background: #ff4444;
+  color: white;
+}
+
+.student-status.missing {
+  background: #ff9800;
+  color: white;
+}
+
+.student-status.pending {
+  background: #ffeb3b;
+  color: #333;
+}
+
+/* Disabled state for all buttons */
+.action-btn:disabled,
+.status-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}

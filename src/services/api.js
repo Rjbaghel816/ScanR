@@ -4,18 +4,15 @@ class ApiService {
   async request(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
     
-    // ✅ FIXED: Don't set Content-Type for FormData
     const isFormData = options.body instanceof FormData;
     const config = {
       headers: {
-        // Only set JSON content type if not FormData
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...options.headers,
       },
       ...options,
     };
 
-    // ✅ FIXED: Only stringify if it's JSON data, not FormData
     if (config.body && typeof config.body === 'object' && !isFormData) {
       config.body = JSON.stringify(config.body);
     }
@@ -23,7 +20,6 @@ class ApiService {
     try {
       const response = await fetch(url, config);
       
-      // Handle non-JSON responses (like file downloads)
       const contentType = response.headers.get('content-type');
       
       if (contentType && contentType.includes('application/json')) {
@@ -35,9 +31,7 @@ class ApiService {
 
         return data;
       } else {
-        // For file downloads, return the response as is
         if (!response.ok) {
-          // Try to get error message from response
           try {
             const errorData = await response.json();
             throw new Error(errorData.message || 'Download failed');
@@ -63,7 +57,23 @@ class ApiService {
     return this.request(`/students/${studentId}`);
   }
 
-  // ✅ FIXED: Upload Excel file using FormData
+  // ✅ ADDED: updateStudentStatus function
+  async updateStudentStatus(studentId, status, remark = '') {
+    return this.request(`/students/${studentId}/status`, {
+      method: 'PATCH',
+      body: { status, remark }
+    });
+  }
+
+  // ✅ ADDED: updateStudentRemark function
+  async updateStudentRemark(studentId, remark) {
+    return this.request(`/students/${studentId}/remark`, {
+      method: 'PATCH',
+      body: { remark }
+    });
+  }
+
+  // Excel Upload
   async uploadExcel(formData) {
     try {
       console.log('📤 Uploading Excel file via API...');
@@ -71,7 +81,6 @@ class ApiService {
       const response = await fetch(`${API_BASE}/students/upload-excel`, {
         method: 'POST',
         body: formData,
-        // ❌ DON'T set Content-Type header - browser will set it automatically with boundary
       });
       
       if (!response.ok) {
@@ -85,20 +94,6 @@ class ApiService {
       console.error('Excel upload API error:', error);
       throw error;
     }
-  }
-
-  async updateStatus(studentId, status, remark = '') {
-    return this.request(`/students/${studentId}/status`, {
-      method: 'PATCH',
-      body: { status, remark }
-    });
-  }
-
-  async updateStudentRemark(studentId, remark) {
-    return this.request(`/students/${studentId}/status`, {
-      method: 'PATCH',
-      body: { status: 'Present', remark } // Assuming you want to keep status as Present when updating remark
-    });
   }
 
   async deleteStudent(studentId) {
@@ -185,7 +180,6 @@ class ApiService {
         throw new Error(error.message || 'PDF download failed');
       }
 
-      // Get filename from response headers or create default
       const contentDisposition = response.headers.get('content-disposition');
       let filename = `Copy_${studentId}.pdf`;
       
@@ -196,7 +190,6 @@ class ApiService {
         }
       }
 
-      // Handle file download
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -229,10 +222,8 @@ class ApiService {
 
   // Utility method to convert base64 to file for upload
   base64ToFile(base64Data, filename = 'image.jpg') {
-    // Remove data URL prefix if present
     const base64WithoutPrefix = base64Data.replace(/^data:image\/\w+;base64,/, '');
     
-    // Convert base64 to blob
     const byteCharacters = atob(base64WithoutPrefix);
     const byteArrays = [];
     
@@ -280,14 +271,13 @@ const createApiServiceWithErrorHandling = () => {
       if (typeof value === 'function') {
         return async function (...args) {
           try {
-            console.log(`🔄 API Call: ${prop}`, args);
+            console.log(`🔄 API Call: ${prop}`, args[0]); // Log only first arg for brevity
             return await value.apply(target, args);
           } catch (error) {
             console.error(`API Error in ${prop}:`, error);
             
-            // Show user-friendly error messages
             if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-              throw new Error('Network error: Please check your internet connection and ensure the server is running.');
+              throw new Error('Network error: Please check server connection.');
             } else if (error.message.includes('404')) {
               throw new Error('Requested resource not found.');
             } else if (error.message.includes('500')) {
