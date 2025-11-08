@@ -50,7 +50,9 @@ const PhotoCapture = ({
         },
       };
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const mediaStream = await navigator.mediaDevices.getUserMedia(
+        constraints
+      );
       setStream(mediaStream);
       setCameraReady(true);
       return true;
@@ -65,7 +67,9 @@ const PhotoCapture = ({
           },
         };
 
-        const fallbackStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+        const fallbackStream = await navigator.mediaDevices.getUserMedia(
+          fallbackConstraints
+        );
         setStream(fallbackStream);
         setCameraReady(true);
         return true;
@@ -194,7 +198,7 @@ const PhotoCapture = ({
 
     try {
       setUploading(true);
-      
+
       let finalPhotos = [...(capturedPhotos || [])];
 
       // Add current photo if exists
@@ -210,13 +214,13 @@ const PhotoCapture = ({
       }
 
       const success = await onFinish(finalPhotos);
-      
+
       if (success) {
         setCurrentPhoto(null);
         if (onPhotosUpdate) {
           onPhotosUpdate([]);
         }
-        
+
         // Auto move to next student
         if (hasNextStudent) {
           setTimeout(() => {
@@ -254,7 +258,11 @@ const PhotoCapture = ({
   // Keyboard shortcuts
   const handleKeyPress = useCallback(
     (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+      if (
+        e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.tagName === "SELECT"
+      ) {
         return;
       }
 
@@ -265,7 +273,11 @@ const PhotoCapture = ({
         return;
       }
 
-      if (["r", "R", "k", "K", "f", "F", "a", "A", "n", "N", "Escape"].includes(e.key)) {
+      if (
+        ["r", "R", "k", "K", "f", "F", "a", "A", "n", "N", "Escape"].includes(
+          e.key
+        )
+      ) {
         e.preventDefault();
       }
 
@@ -493,7 +505,7 @@ const PhotoCapture = ({
                   🔄 Retake (R)
                 </button>
 
-                <div className="status-actions">
+                {/* <div className="status-actions">
                   <button
                     type="button"
                     className="action-btn absent"
@@ -510,9 +522,9 @@ const PhotoCapture = ({
                   >
                     📝 Missing
                   </button>
-                </div>
+                </div> */}
 
-                {hasNextStudent && (
+                {/* {hasNextStudent && (
                   <button
                     ref={nextStudentBtnRef}
                     type="button"
@@ -522,7 +534,7 @@ const PhotoCapture = ({
                   >
                     ⏭ Next Student (N)
                   </button>
-                )}
+                )} */}
               </div>
             </div>
           ) : (
@@ -646,7 +658,9 @@ const PhotoCapture = ({
           <span>
             {cameraError
               ? "Camera unavailable. Please ensure camera permissions are granted."
-              : `Shortcuts: Enter=Capture/Keep & Next, R=Retake, K/F=Finish & Save, A=Keep & Next${hasNextStudent ? ", N=Next Student" : ""}, Esc=Close`}
+              : `Shortcuts: Enter=Capture/Keep & Next, R=Retake, K/F=Finish & Save, A=Keep & Next${
+                  hasNextStudent ? ", N=Next Student" : ""
+                }, Esc=Close`}
           </span>
         </div>
       </div>
